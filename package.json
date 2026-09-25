@@ -1,17 +1,19 @@
 {
-  "name": "homebridge-harmony",
-  "version": "2.0.6",
+  "name": "@peterwestermann/homebridge-harmony",
+  "version": "2.0.7",
   "author": "Nicolas Dujardin",
-  "description": "Publish your harmony activities as homekit accessories",
+  "description": "Homebridge Harmony plugin - Peter Westermann maintained variant",
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "node -e \"import('./index.js').then(() => console.log('No syntax errors! (node ' + process.version + ')'))\""
+    "test": "node -e \"import('./index.js').then(() => console.log('No syntax errors! (node ' + process.version + ')'))\"",
+    "test:pw": "node test/cached-switch-name.test.js && node test/plugin-identity.test.js",
+    "test:all": "npm test && npm run test:pw"
   },
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nicoduj/homebridge-harmony.git"
+    "url": "git+https://github.com/PeterWestermann/homebridge-harmony.git"
   },
   "engines": {
     "homebridge": "^1.8.0 || ^2.0.0",
@@ -30,9 +32,9 @@
     "harmony-websocket": "^1.5.5"
   },
   "bugs": {
-    "url": "https://github.com/nicoduj/homebridge-harmony/issues"
+    "url": "https://github.com/PeterWestermann/homebridge-harmony/issues"
   },
-  "homepage": "https://github.com/nicoduj/homebridge-harmony#readme",
+  "homepage": "https://github.com/PeterWestermann/homebridge-harmony#readme",
   "devDependencies": {
     "husky": "^3.1.0",
     "prettier": "2.0.0",
@@ -58,5 +60,8 @@
       "type": "paypal",
       "url": "https://www.paypal.me/nicoduj/"
     }
-  ]
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }
