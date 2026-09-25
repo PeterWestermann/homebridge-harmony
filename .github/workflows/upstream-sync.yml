@@ -1,0 +1,236 @@
+name: Upstream Sync
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+  checks: read
+  issues: write
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PW branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+          ref: Dynamic-Platform
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Check npm bootstrap state
+        id: bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_name="$(node -p "require('./package.json').name")"
+          if npm view "$package_name" version >/dev/null 2>&1; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::$package_name does not exist on npm yet. Upstream automation remains paused until the initial package bootstrap is complete."
+          fi
+
+      - name: Fetch upstream
+        if: steps.bootstrap.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git remote add upstream https://github.com/nicoduj/homebridge-harmony.git
+          git fetch upstream Dynamic-Platform --tags
+
+      - name: Detect upstream changes
+        if: steps.bootstrap.outputs.ready == 'true'
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git merge-base --is-ancestor upstream/Dynamic-Platform HEAD; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "PW branch already contains the current upstream Dynamic-Platform."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "New upstream commits detected."
+          fi
+
+      - name: Check for existing upstream sync PR
+        if: steps.detect.outputs.changed == 'true'
+        id: existing
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          count="$(gh pr list --base Dynamic-Platform --state open --search 'chore: sync upstream homebridge-harmony in:title' --json number --jq 'length')"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare and validate upstream candidate
+        if: steps.detect.outputs.changed == 'true' && steps.existing.outputs.count == '0'
+        id: prepare
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          branch="automation/upstream-sync-$(date -u +%Y%m%d-%H%M%S)"
+          previous_version="$(node -p "require('./package.json').version")"
+          upstream_version="$(git show upstream/Dynamic-Platform:package.json | node -e "let s=''; process.stdin.on('data', d => s += d); process.stdin.on('end', () => console.log(JSON.parse(s).version));")"
+          upstream_sha="$(git rev-parse upstream/Dynamic-Platform)"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+
+          set +e
+          git merge --no-commit --no-ff upstream/Dynamic-Platform
+          merge_status=$?
+          set -e
+
+          if [ "$merge_status" -ne 0 ]; then
+            conflicts="$(git diff --name-only --diff-filter=U)"
+            unexpected="$(printf '%s\n' "$conflicts" | grep -v '^package.json$' || true)"
+
+            if [ -n "$unexpected" ]; then
+              echo "::error::Upstream merge has conflicts outside package.json:"
+              printf '%s\n' "$unexpected"
+              gh issue create --title "Upstream sync stopped: merge conflict" --body "Automatic sync stopped without overwriting source. Upstream commit: $upstream_sha. Conflict files: $conflicts" || true
+              git merge --abort || true
+              exit 42
+            fi
+
+            echo "Resolving the expected package.json identity/version conflict from upstream."
+            git checkout --theirs -- package.json
+            git add package.json
+          fi
+
+          node scripts/prepare-upstream-release.mjs "$previous_version" "$upstream_version"
+          new_version="$(node -p "require('./package.json').version")"
+
+          npm install --ignore-scripts --no-audit --no-fund --no-package-lock
+          npm run test:all
+          npm pack --dry-run --json
+
+          if git diff --name-only --diff-filter=U | grep -q .; then
+            echo "::error::Unresolved merge conflicts remain."
+            git diff --name-only --diff-filter=U
+            exit 1
+          fi
+
+          git add package.json
+          git commit -m "chore: sync upstream and prepare PW v$new_version"
+
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "new_version=$new_version" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "upstream_sha=$upstream_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Publish candidate branch, validate CI, merge and release
+        if: steps.detect.outputs.changed == 'true' && steps.existing.outputs.count == '0'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.prepare.outputs.branch }}
+          NEW_VERSION: ${{ steps.prepare.outputs.new_version }}
+          HEAD_SHA: ${{ steps.prepare.outputs.head_sha }}
+          UPSTREAM_SHA: ${{ steps.prepare.outputs.upstream_sha }}
+        run: |
+          set -euo pipefail
+
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push origin "$BRANCH"
+
+          cat > /tmp/upstream-pr-body.md <<EOF
+          Automated integration of the latest `nicoduj/homebridge-harmony:Dynamic-Platform` into the PW-maintained fork.
+
+          Upstream commit: `$UPSTREAM_SHA`
+          Prepared PW release: `$NEW_VERSION` (package: `@peterwestermann/homebridge-harmony`)
+
+          Automated pre-merge gates completed:
+          - PW scoped package identity and `HarmonyHubWebSocket` invariant
+          - cached-switch-name regression test
+          - inherited upstream syntax/import test
+          - npm package dry-run
+
+          A separate CI workflow is dispatched for Node.js 22, 24 and 26. Only after that CI passes is this PR merged with a merge commit, preserving upstream ancestry. The npm publish workflow is then dispatched explicitly.
+
+          CL-Orion is never updated automatically.
+          EOF
+
+          pr_url="$(gh pr create --base Dynamic-Platform --head "$BRANCH" --title "chore: sync upstream homebridge-harmony -> PW v$NEW_VERSION" --body-file /tmp/upstream-pr-body.md --assignee PeterWestermann)"
+          pr_number="$(gh pr view "$pr_url" --json number --jq '.number')"
+
+          gh workflow run ci.yml --ref "$BRANCH"
+
+          ci_run_id=""
+          for _ in $(seq 1 30); do
+            ci_run_id="$(gh run list --workflow ci.yml --branch "$BRANCH" --event workflow_dispatch --limit 20 --json databaseId,headSha --jq ".[] | select(.headSha == \"$HEAD_SHA\") | .databaseId" | head -n 1)"
+            if [ -n "$ci_run_id" ]; then break; fi
+            sleep 2
+          done
+
+          if [ -z "$ci_run_id" ]; then
+            echo "::error::Could not locate the dispatched CI run."
+            exit 1
+          fi
+
+          gh run watch "$ci_run_id" --exit-status
+          gh pr merge "$pr_number" --merge --delete-branch
+
+          merge_sha="$(gh pr view "$pr_number" --json mergeCommit --jq '.mergeCommit.oid')"
+          if [ -z "$merge_sha" ] || [ "$merge_sha" = "null" ]; then
+            echo "::error::Could not determine the merged PW commit."
+            exit 1
+          fi
+
+          gh workflow run publish.yml --ref Dynamic-Platform
+
+          publish_run_id=""
+          for _ in $(seq 1 30); do
+            publish_run_id="$(gh run list --workflow publish.yml --branch Dynamic-Platform --event workflow_dispatch --limit 20 --json databaseId,headSha --jq ".[] | select(.headSha == \"$merge_sha\") | .databaseId" | head -n 1)"
+            if [ -n "$publish_run_id" ]; then break; fi
+            sleep 2
+          done
+
+          if [ -z "$publish_run_id" ]; then
+            echo "::error::Could not locate the dispatched publish run."
+            exit 1
+          fi
+
+          gh run watch "$publish_run_id" --exit-status
+
+          for _ in $(seq 1 12); do
+            if [ "$(npm view "@peterwestermann/homebridge-harmony@$NEW_VERSION" version 2>/dev/null || true)" = "$NEW_VERSION" ]; then
+              git fetch origin Dynamic-Platform
+              git tag -a "v$NEW_VERSION" "$merge_sha" -m "PW v$NEW_VERSION"
+              git push origin "v$NEW_VERSION"
+              gh release create "v$NEW_VERSION" --target "$merge_sha" --generate-notes --title "v$NEW_VERSION"
+              echo "PW release $NEW_VERSION is published and visible on npm."
+              exit 0
+            fi
+            sleep 5
+          done
+
+          echo "::error::Publish workflow completed, but PW v$NEW_VERSION is not visible on npm."
+          exit 1
+
+      - name: Report existing sync PR
+        if: steps.detect.outputs.changed == 'true' && steps.existing.outputs.count != '0'
+        run: echo "::warning::An upstream sync PR is already open. No duplicate PR or release was created."
