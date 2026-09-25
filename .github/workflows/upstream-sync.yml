@@ -218,11 +218,8 @@ jobs:
 
           for _ in $(seq 1 12); do
             if [ "$(npm view "@peterwestermann/homebridge-harmony@$NEW_VERSION" version 2>/dev/null || true)" = "$NEW_VERSION" ]; then
-              git fetch origin Dynamic-Platform
-              git tag -a "v$NEW_VERSION" "$merge_sha" -m "PW v$NEW_VERSION"
-              git push origin "v$NEW_VERSION"
-              gh release create "v$NEW_VERSION" --target "$merge_sha" --generate-notes --title "v$NEW_VERSION"
               echo "PW release $NEW_VERSION is published and visible on npm."
+              echo "The Release Hygiene workflow will create or verify the matching Git tag and GitHub release from npm gitHead metadata."
               exit 0
             fi
             sleep 5
