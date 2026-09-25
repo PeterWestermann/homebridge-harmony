@@ -2,6 +2,7 @@ var Service, Characteristic, Accessory, AccessoryType, UUIDGen;
 import Harmony from 'harmony-websocket';
 import HarmonyConst from './harmonyConst.js';
 import HarmonyTools from './harmonyTools.js';
+import {PLUGIN_IDENTIFIER, PLATFORM_IDENTIFIER} from './pwIdentity.js';
 
 function HarmonyBase(api) {
   Service = api.hap.Service;
@@ -377,7 +378,7 @@ HarmonyBase.prototype = {
           harmonyPlatform.mainPlatform.publishAllTVAsExternalAccessory)
       ) {
         try {
-          harmonyPlatform.api.publishExternalAccessories('homebridge-harmony', [accessory]);
+          harmonyPlatform.api.publishExternalAccessories(PLUGIN_IDENTIFIER, [accessory]);
           harmonyPlatform.log(
             '(' +
               harmonyPlatform.name +
@@ -459,8 +460,8 @@ HarmonyBase.prototype = {
 
     if (accstoRemove.length > 0)
       harmonyPlatform.api.unregisterPlatformAccessories(
-        'homebridge-harmony',
-        'HarmonyHubWebSocket',
+        PLUGIN_IDENTIFIER,
+        PLATFORM_IDENTIFIER,
         accstoRemove
       );
   },
@@ -1472,8 +1473,8 @@ HarmonyBase.prototype = {
     );
 
     harmonyPlatform.api.registerPlatformAccessories(
-      'homebridge-harmony',
-      'HarmonyHubWebSocket',
+      PLUGIN_IDENTIFIER,
+      PLATFORM_IDENTIFIER,
       accessoriesToAdd
     );
   },
@@ -1497,6 +1498,11 @@ HarmonyBase.prototype = {
       service.addOptionalCharacteristic(Characteristic.ConfiguredName);
       service.setCharacteristic(Characteristic.ConfiguredName, switchName);
       accessory.addService(service);
+    } else if (HarmonyTools.isNil(service.name)) {
+      // `name` is a runtime-only property and is not restored from Homebridge's
+      // cached accessory data. Restore the same value used when the service was
+      // first created so Characteristic.Name never receives null/undefined.
+      service.name = HarmonyTools.isNil(serviceSubType) ? switchName : serviceSubType;
     }
     return service;
   },

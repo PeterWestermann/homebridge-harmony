@@ -5,6 +5,7 @@ import discoverPackage from '@harmonyhub/discover';
 import {HarmonySubPlatform} from './harmonySubPlatform.js';
 import HarmonyConst from './harmonyConst.js';
 import HarmonyTools from './harmonyTools.js';
+import {PLUGIN_IDENTIFIER, PLATFORM_IDENTIFIER} from './pwIdentity.js';
 
 const {Explorer} = discoverPackage;
 const discover = new Explorer(61991);
@@ -21,7 +22,7 @@ function HarmonyPlatform(log, config, api) {
   AccessoryType = this.api.hap.Categories;
 
   if (!config) {
-    log('No configuration found for homebridge-harmony');
+    log('No configuration found for @peterwestermann/homebridge-harmony');
     return;
   }
 
@@ -71,8 +72,8 @@ function HarmonyPlatform(log, config, api) {
           for (let i = 0, len = this.platforms.length; i < len; i++) {
             let platform = this.platforms[i];
             platform.api.unregisterPlatformAccessories(
-              'homebridge-harmony',
-              'HarmonyHubWebSocket',
+              PLUGIN_IDENTIFIER,
+              PLATFORM_IDENTIFIER,
               platform._foundAccessories
             );
             platform._foundAccessories = [];
@@ -81,8 +82,8 @@ function HarmonyPlatform(log, config, api) {
 
         if (this._AccessoriesToRemove.length > 0) {
           this.api.unregisterPlatformAccessories(
-            'homebridge-harmony',
-            'HarmonyHubWebSocket',
+            PLUGIN_IDENTIFIER,
+            PLATFORM_IDENTIFIER,
             this._AccessoriesToRemove
           );
         }
