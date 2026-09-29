@@ -16,9 +16,24 @@ This fork is maintained as a thin delta on top of:
 
 ## Automatic upstream update and release flow
 
-`.github/workflows/upstream-sync.yml` checks `nicoduj/homebridge-harmony:Dynamic-Platform` every six hours and can also be started manually.
+`.github/workflows/upstream-sync.yml` checks both
+`nicoduj/homebridge-harmony:Dynamic-Platform` and the official
+`homebridge-harmony` npm release every six hours and can also be started
+manually.
+
+The npm check protects against releases that were published without pushing the
+corresponding version commit to GitHub. A changed npm tarball is rebuilt from
+its audited Git ref and compared file by file, with only `package.json` version
+being normalized. A packaging-only version bump is recorded without publishing
+a redundant PW runtime release. If the npm payload contains files that cannot
+be reproduced from GitHub, automation stops and opens a deduplicated issue for
+manual review instead of importing compiled code blindly.
 
 After the initial npm package bootstrap exists, a new upstream commit causes the workflow to merge upstream into an automation branch, stop on unexpected conflicts, compute a stable PW version, run the PW and upstream checks, open an audit PR, run CI on Node.js 22/24/26, merge only after green checks, publish with npm Trusted Publishing/OIDC, verify npm visibility, and create the matching Git tag and GitHub release.
+
+The last successfully audited official npm version and integrity value are
+stored in `.github/upstream-npm-state.json`. This state is updated through an
+auditable pull request when npm changes without a corresponding source merge.
 
 No GitHub workflow installs or restarts anything on CL-Orion.
 
