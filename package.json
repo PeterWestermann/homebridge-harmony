@@ -1,12 +1,12 @@
 {
   "name": "@peterwestermann/homebridge-harmony",
-  "version": "2.0.8",
+  "version": "2.1.1",
   "author": "Nicolas Dujardin",
   "description": "Homebridge Harmony plugin - Peter Westermann maintained variant",
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "node -e \"import('./index.js').then(() => console.log('No syntax errors! (node ' + process.version + ')'))\"",
+    "test": "node -e \"import('./index.js').then(() => console.log('No syntax errors! (node ' + process.version + ')'))\" && node --test test/*.test.js",
     "test:pw": "node test/cached-switch-name.test.js && node test/plugin-identity.test.js",
     "test:all": "npm test && npm run test:pw"
   },
@@ -36,6 +36,7 @@
   },
   "homepage": "https://github.com/PeterWestermann/homebridge-harmony#readme",
   "devDependencies": {
+    "@homebridge/hap-nodejs": "^2.2.2",
     "husky": "^3.1.0",
     "prettier": "2.0.0",
     "pretty-quick": "^2.0.0"
