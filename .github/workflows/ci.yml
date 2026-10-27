@@ -38,6 +38,9 @@ jobs:
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
 
+      - name: Validate workflow shell scripts
+        run: node scripts/check-workflow-shells.mjs
+
       - name: Install dependencies
         run: npm install --ignore-scripts --no-audit --no-fund --no-package-lock
 

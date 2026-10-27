@@ -1,5 +1,13 @@
 # PW changes
 
+## 2.0.8
+
+- Integrates official Harmony 2.0.7 custom switch/slider name fixes.
+- Restores Memory1/Memory2 names on the existing cached services and tests custom-name changes.
+- Repairs shell quoting in sync and publish workflows; reuses an upstream-specific sync branch.
+- Dispatches CI explicitly for npm-only audit PRs and deduplicates merge-conflict reports.
+- Adds workflow shell syntax and unsafe-heredoc regression checks to multi-Node CI.
+
 ## 2.0.7
 
 - Migrates the maintained npm package to `@peterwestermann/homebridge-harmony`.
