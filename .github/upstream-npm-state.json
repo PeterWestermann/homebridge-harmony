@@ -1,11 +1,11 @@
 {
   "package": "homebridge-harmony",
-  "version": "2.0.7",
-  "gitHead": "7aea3d729148ebd4bd62b37cfe18dc44ebc85028",
-  "integrity": "sha512-YymkwyUjLAPas7ma9hckcJ/e92fVqJlCq8NInwyr9WgAUYC7kmXzUlB8knB0Rpao2g59Z5oqFBXinLWIR8TuRA==",
+  "version": "2.1.0",
+  "gitHead": "6d72d4cbd1d60a6d9b752f86385b2f40755b36f6",
+  "integrity": "sha512-qZD2uOmQqxRq/7gKn5wXKu3gF1i2+dRiz65LEdCheLCA8oAg6Hl06nGWK61vPTkDaSwHXIY75Y9c97cBirxeHg==",
   "upstreamBranch": "Dynamic-Platform",
-  "branchCommit": "7aea3d729148ebd4bd62b37cfe18dc44ebc85028",
-  "auditRef": "7aea3d729148ebd4bd62b37cfe18dc44ebc85028",
+  "branchCommit": "6d72d4cbd1d60a6d9b752f86385b2f40755b36f6",
+  "auditRef": "6d72d4cbd1d60a6d9b752f86385b2f40755b36f6",
   "result": "payload-equivalent-to-audited-upstream-git-ref",
-  "auditedAt": "2026-10-22T11:46:20.221Z"
+  "auditedAt": "2026-10-27T11:16:07.973Z"
 }
