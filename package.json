@@ -1,6 +1,6 @@
 {
   "name": "@peterwestermann/homebridge-harmony",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "author": "Nicolas Dujardin",
   "description": "Homebridge Harmony plugin - Peter Westermann maintained variant",
   "type": "module",
